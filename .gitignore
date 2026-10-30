@@ -42,3 +42,6 @@ next-env.d.ts
 
 # supabase cli
 /supabase/.temp/
+
+# お客様のチャット窓口（npm run build:widget で作る）
+/public/widget.js
