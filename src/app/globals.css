@@ -1,26 +1,20 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* ボタニカの仮のブランドカラー。本当の色が届いたら、ここだけ差しかえる（チャット窓口は src/widget/theme.ts） */
+@theme {
+  --color-canvas: #f7f3ec; /* 生成りのベージュ。背景 */
+  --color-surface: #ffffff; /* 一覧や会話の面 */
+  --color-ink: #3f3a34; /* 本文 */
+  --color-muted: #857c72; /* 時刻・名前などの小さな文字 */
+  --color-primary: #56705a; /* 重要なボタンだけに使う緑 */
+  --color-primary-soft: #e3ebe3; /* 選んでいるタブ・対応中の印 */
+  --color-danger: #9c5b4e; /* 終了・ログアウトなど取り消しにくい操作。塗りつぶさない */
+  --color-danger-soft: #f3e4df; /* スタッフ待ちの印 */
+  --color-line: #e4dccf; /* 枠線・区切り線 */
+  --font-sans: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", Meiryo, sans-serif;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-canvas);
+  color: var(--color-ink);
 }
