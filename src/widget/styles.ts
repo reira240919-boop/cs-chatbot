@@ -50,6 +50,14 @@ export function buildStyles(t: Theme): string {
 .row.ai .bubble, .row.operator .bubble { background: ${t.surface}; border: 1px solid ${t.border}; border-bottom-left-radius: 4px; }
 .row.operator .sender { color: ${t.primary}; font-weight: 700; }
 .notice { font-size: 12px; color: ${t.muted}; text-align: center; }
+.notice.status {
+  align-self: center; padding: 6px 12px; border-radius: 999px;
+  background: ${t.surface}; border: 1px solid ${t.border};
+}
+.typing { display: flex; gap: 4px; align-items: center; height: 38px; }
+.typing span { width: 6px; height: 6px; border-radius: 50%; background: ${t.muted}; animation: blink 1.2s infinite ease-in-out; }
+.typing span:nth-child(2) { animation-delay: 0.2s; }
+.typing span:nth-child(3) { animation-delay: 0.4s; }
 .notice.error, .send-error { color: ${t.error}; }
 .retry {
   display: block; margin: 6px auto 0; padding: 4px 12px; cursor: pointer;
@@ -70,7 +78,8 @@ export function buildStyles(t: Theme): string {
 }
 .send:disabled { opacity: 0.45; cursor: default; }
 @keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
-@media (prefers-reduced-motion: reduce) { .panel, .row { animation: none; } }
+@keyframes blink { 0%, 80%, 100% { opacity: 0.3; } 40% { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .panel, .row, .typing span { animation: none; } }
 @media (max-width: 480px) {
   .panel { right: 0; bottom: 0; width: 100vw; height: 100dvh; border-radius: 0; border: none; }
   .launcher { right: 16px; bottom: 16px; }

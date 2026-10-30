@@ -1,6 +1,11 @@
 import { supabase } from "./supabase";
 
 export type SenderType = "customer" | "ai" | "operator";
+export type ConversationStatus = "ai_handling" | "waiting_operator" | "operator_handling" | "closed";
+export type Conversation = { id: string; status: ConversationStatus };
+
+// AI の API は、widget.js を置いたサイトと同じ場所にある（読み込まれた瞬間にしか分からないので、ここで覚えておく）
+const API_BASE = new URL((document.currentScript as HTMLScriptElement | null)?.src ?? location.href).origin;
 
 export type Message = {
   id: string;
@@ -21,27 +26,33 @@ export async function ensureCustomer(): Promise<string> {
 }
 
 // 終わっていない会話があれば、その続きから始める
-export async function findOpenConversation(customerId: string): Promise<string | null> {
+export async function findOpenConversation(customerId: string): Promise<Conversation | null> {
   const { data, error } = await supabase
     .from("conversations")
-    .select("id")
+    .select("id, status")
     .eq("customer_session_id", customerId)
     .neq("status", "closed")
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
   if (error) throw error;
-  return data?.id ?? null;
+  return data;
 }
 
-export async function createConversation(customerId: string): Promise<string> {
+export async function createConversation(customerId: string): Promise<Conversation> {
   const { data, error } = await supabase
     .from("conversations")
     .insert({ customer_session_id: customerId })
-    .select("id")
+    .select("id, status")
     .single();
   if (error) throw error;
-  return data.id;
+  return data;
+}
+
+export async function fetchConversationStatus(conversationId: string): Promise<ConversationStatus> {
+  const { data, error } = await supabase.from("conversations").select("status").eq("id", conversationId).single();
+  if (error) throw error;
+  return data.status;
 }
 
 export async function fetchMessages(conversationId: string): Promise<Message[]> {
@@ -62,6 +73,18 @@ export async function sendCustomerMessage(conversationId: string, content: strin
     .single();
   if (error) throw error;
   return data;
+}
+
+// AI に返事を頼む。返事そのものは Realtime で届く
+export async function requestAiReply(conversationId: string): Promise<void> {
+  const { data } = await supabase.auth.getSession();
+  if (!data.session) throw new Error("ログインが切れています");
+  const response = await fetch(`${API_BASE}/api/ai-respond`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${data.session.access_token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ conversationId }),
+  });
+  if (!response.ok) throw new Error(`AI の返事を作れませんでした（${response.status}）`);
 }
 
 // 同じメッセージが Realtime と送信結果の両方から届いても、1つだけ残す
