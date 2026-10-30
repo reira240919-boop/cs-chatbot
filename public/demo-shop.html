@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>埋め込みの確認用ページ</title>
+    <style>
+      body { margin: 0; font-family: sans-serif; color: #333; background: #fff; }
+      header { padding: 20px 24px; border-bottom: 1px solid #eee; font-weight: 700; letter-spacing: 0.1em; }
+      main { max-width: 720px; margin: 40px auto; padding: 0 16px; line-height: 1.8; }
+      .note { padding: 12px 16px; background: #f5f5f5; border-radius: 8px; font-size: 14px; }
+    </style>
+  </head>
+  <body>
+    <header>BOTANICA（確認用）</header>
+    <main>
+      <h1>ショップに貼ったときの見え方の確認</h1>
+      <p class="note">
+        このページは開発中の確認用です。右下のボタンが、ショップに 1 行貼ったときに出るチャット窓口です。
+      </p>
+      <p>ショップ側に貼るのは、下の 1 行だけです。</p>
+      <pre>&lt;script src="https://（公開先）/widget.js"&gt;&lt;/script&gt;</pre>
+    </main>
+    <!-- ショップに貼る 1 行と同じもの -->
+    <script src="/widget.js"></script>
+  </body>
+</html>
