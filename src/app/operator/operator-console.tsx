@@ -1,26 +1,34 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createBrowserSupabase } from "@/lib/supabase-browser";
 import type { Operator } from "@/lib/supabase-server";
 import { ConversationDetail } from "./conversation-detail";
 import { ConversationList, type Tab } from "./conversation-list";
+import { ConversationSearch } from "./conversation-search";
 import { OperatorHeader, PAGE_TITLE } from "./operator-header";
 import {
+  CLOSED_PAGE_SIZE,
   closeConversation,
-  fetchConversations,
+  fetchClosedConversations,
   fetchMessages,
+  fetchOpenConversations,
   fetchOperatorNames,
+  mergeConversations,
   mergeMessages,
+  searchConversations,
+  SEARCH_LIMIT,
   sendOperatorReply,
   sortByActivity,
   takeConversation,
   type Conversation,
   type Message,
+  type SearchCondition,
 } from "./conversations";
 
 const LOAD_ERROR = "会話を読み込めませんでした。ページを開き直してください。";
 const ACTION_ERROR = "うまくいきませんでした。もう一度お試しください。";
+const SEARCH_ERROR = "探せませんでした。もう一度お試しください。";
 
 type Notice = { kind: "ok" | "error"; text: string };
 
@@ -34,6 +42,12 @@ export function OperatorConsole({ operator }: { operator: Operator }) {
   const [notice, setNotice] = useState<Notice | null>(null);
   const [busy, setBusy] = useState(false);
   const [now, setNow] = useState(() => Date.now());
+  const [hasMoreClosed, setHasMoreClosed] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  // 検索中だけ results に結果が入る（null のときは、ふだんの一覧）
+  const [search, setSearch] = useState<SearchCondition | null>(null);
+  const [results, setResults] = useState<Conversation[] | null>(null);
+  const searchId = useRef(0);
 
   const showNotice = (next: Notice) => {
     setNotice(next);
@@ -43,9 +57,17 @@ export function OperatorConsole({ operator }: { operator: Operator }) {
   // 一覧とスタッフの名前。新しい会話・メッセージ・状態の変化は、開き直さずに受け取る
   useEffect(() => {
     const reload = () =>
-      fetchConversations(supabase)
-        .then(setConversations)
+      Promise.all([fetchOpenConversations(supabase), fetchClosedConversations(supabase, 0)])
+        .then(([open, closed]) => {
+          setConversations(mergeConversations([], [...open, ...closed]));
+          setHasMoreClosed(closed.length === CLOSED_PAGE_SIZE);
+        })
         .catch(() => setNotice({ kind: "error", text: LOAD_ERROR }));
+    // 状態や最新のメッセージの変化は、ふだんの一覧と検索の結果の両方に入れる
+    const updateLists = (change: (list: Conversation[]) => Conversation[]) => {
+      setConversations((current) => current && change(current));
+      setResults((current) => current && change(current));
+    };
     fetchOperatorNames(supabase).then(setOperatorNames).catch(() => {});
 
     // 同じ名前だと、閉じかけの古いチャンネルが使い回されて何も届かなくなるので、毎回ちがう名前にする
@@ -57,14 +79,12 @@ export function OperatorConsole({ operator }: { operator: Operator }) {
       })
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "conversations" }, (payload) => {
         const updated = payload.new as Omit<Conversation, "last_message">;
-        setConversations((current) => current && current.map((c) => (c.id === updated.id ? { ...c, ...updated } : c)));
+        updateLists((list) => list.map((c) => (c.id === updated.id ? { ...c, ...updated } : c)));
       })
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages" }, (payload) => {
         const message = payload.new as Message;
-        setConversations(
-          (current) =>
-            current &&
-            sortByActivity(current.map((c) => (c.id === message.conversation_id ? { ...c, last_message: message } : c))),
+        updateLists((list) =>
+          sortByActivity(list.map((c) => (c.id === message.conversation_id ? { ...c, last_message: message } : c))),
         );
         setDetail((current) =>
           current?.conversationId === message.conversation_id
@@ -97,8 +117,50 @@ export function OperatorConsole({ operator }: { operator: Operator }) {
     document.title = waitingCount > 0 ? `(${waitingCount}) スタッフ待ち｜${PAGE_TITLE}` : PAGE_TITLE;
   }, [waitingCount]);
 
-  const selected = conversations?.find((c) => c.id === selectedId) ?? null;
+  const shown = search ? results : conversations;
+  const selected = shown?.find((c) => c.id === selectedId) ?? conversations?.find((c) => c.id === selectedId) ?? null;
   const selectedMessages = detail?.conversationId === selectedId ? detail.messages : null;
+
+  const runSearch = async (condition: SearchCondition) => {
+    // 前の検索の結果が、あとから届いて上書きしないようにする
+    const id = ++searchId.current;
+    setSearch(condition);
+    setResults(null);
+    setTab("all");
+    try {
+      const found = await searchConversations(supabase, condition);
+      if (id === searchId.current) setResults(found);
+    } catch {
+      if (id !== searchId.current) return;
+      setSearch(null);
+      showNotice({ kind: "error", text: SEARCH_ERROR });
+    }
+  };
+
+  const clearSearch = () => {
+    searchId.current++;
+    setSearch(null);
+    setResults(null);
+  };
+
+  const loadMoreClosed = async () => {
+    if (!conversations) return;
+    setLoadingMore(true);
+    try {
+      const offset = conversations.filter((c) => c.status === "closed").length;
+      const more = await fetchClosedConversations(supabase, offset);
+      setConversations((current) => current && mergeConversations(current, more));
+      setHasMoreClosed(more.length === CLOSED_PAGE_SIZE);
+    } catch {
+      showNotice({ kind: "error", text: LOAD_ERROR });
+    } finally {
+      setLoadingMore(false);
+    }
+  };
+
+  const searchLabel = search && [search.keyword && `「${search.keyword}」を含む`, search.category && `分類が「${search.category}」の`]
+    .filter(Boolean)
+    .join("・");
 
   const runAction = async (action: () => Promise<void>, okText: string) => {
     setBusy(true);
@@ -156,18 +218,39 @@ export function OperatorConsole({ operator }: { operator: Operator }) {
 
       <div className="flex min-h-0 flex-1">
         <aside
-          className={`w-full shrink-0 border-r border-line bg-surface md:block md:w-80 ${selected ? "hidden" : "block"}`}
+          className={`w-full shrink-0 flex-col border-r border-line bg-surface md:flex md:w-80 ${selected ? "hidden" : "flex"}`}
         >
-          {conversations === null ? (
-            <p className="p-6 text-center text-sm text-muted">読み込んでいます…</p>
+          <ConversationSearch onSearch={runSearch} onClear={clearSearch} active={search !== null} />
+          {search && (
+            <p role="status" className="border-b border-line bg-canvas px-3 py-1.5 text-xs text-muted">
+              {results === null
+                ? "探しています…"
+                : `${searchLabel}会話 ${results.length}件${results.length === SEARCH_LIMIT ? "（多いため、新しい100件まで）" : ""}`}
+            </p>
+          )}
+          {shown === null ? (
+            <p className="p-6 text-center text-sm text-muted">{search ? "探しています…" : "読み込んでいます…"}</p>
           ) : (
             <ConversationList
-              conversations={conversations}
+              conversations={shown}
               tab={tab}
               onTabChange={setTab}
               selectedId={selectedId}
               onSelect={setSelectedId}
               now={now}
+              emptyText={search ? "見つかりませんでした" : undefined}
+              footer={
+                !search && tab === "all" && hasMoreClosed ? (
+                  <button
+                    type="button"
+                    onClick={loadMoreClosed}
+                    disabled={loadingMore}
+                    className="rounded-lg border border-line px-4 py-2 text-sm font-bold hover:bg-canvas disabled:opacity-50"
+                  >
+                    {loadingMore ? "読み込んでいます…" : "終了した会話をもっと見る"}
+                  </button>
+                ) : undefined
+              }
             />
           )}
         </aside>
