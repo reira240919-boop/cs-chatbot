@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>お問い合わせチャット 全体図</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@500;700;900&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+  /* レイアウト: 白い板の上に2段の流れ図（上=AI が答える、下=スタッフにつなぐ）。下に補足 */
+  :root {
+    --bg: #eef1f4;
+    --card: #ffffff;
+    --fg: #1d2633;
+    --muted: #5d6878;
+    --rule: #d6dce4;
+    --ai: #3f8a3c;
+    --ai-soft: #7fb87b;
+    --staff: #2f64a8;
+    --staff-soft: #6a9bd8;
+    --store: #e8873a;
+    --store-soft: #f3ac6e;
+    --display: "Zen Kaku Gothic New", "Hiragino Sans", "Yu Gothic", sans-serif;
+    --body: "Noto Sans JP", "Hiragino Sans", "Yu Gothic", sans-serif;
+  }
+  @page { size: A4 landscape; margin: 0; }
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  html, body { margin: 0; }
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--body);
+    padding-block: 32px 48px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+  }
+  main { max-width: 1180px; margin: 0 auto; display: grid; gap: 20px; }
+  .board {
+    background: var(--card);
+    border-radius: 16px;
+    padding: 24px 20px 12px;
+  }
+  .scroll { overflow-x: auto; }
+  svg { display: block; width: 100%; min-width: 760px; height: auto; }
+  .caption {
+    text-align: center;
+    color: var(--muted);
+    font-size: 15px;
+    letter-spacing: .04em;
+    margin: 0;
+  }
+  .notes {
+    max-width: 68ch;
+    margin: 0 auto;
+    color: var(--muted);
+    font-size: 14px;
+    line-height: 1.8;
+    display: grid;
+    gap: 6px;
+  }
+  .notes p { margin: 0; }
+  .notes strong { color: var(--fg); font-weight: 700; }
+  @media print {
+    body { zoom: .8; padding: 14px 16px 0; min-height: 0; }
+    main { gap: 12px; }
+  }
+
+  /* 図の中の文字と色 */
+  .h { font-family: var(--display); font-weight: 900; font-size: 26px; fill: var(--fg); }
+  .name { font-family: var(--display); font-weight: 700; font-size: 18px; fill: var(--fg); text-anchor: middle; }
+  .tech { font-family: var(--body); font-size: 13px; fill: var(--muted); text-anchor: middle; }
+  .tag { font-family: var(--body); font-size: 13px; font-weight: 500; text-anchor: middle; }
+  .paper { fill: var(--card); }
+  .ai { color: var(--ai); }
+  .staff { color: var(--staff); }
+  .arrow-a { stroke: var(--ai-soft); stroke-width: 4; fill: none; }
+  .arrow-s { stroke: var(--staff-soft); stroke-width: 4; fill: none; }
+  .head-a { fill: var(--ai-soft); }
+  .head-s { fill: var(--staff-soft); }
+  .link { stroke: var(--staff); stroke-width: 4; fill: none; }
+  .db-body { fill: var(--store); }
+  .db-top { fill: var(--store-soft); }
+  .db-band { stroke: var(--card); stroke-width: 3; fill: none; }
+  .on-color { fill: var(--card); }
+</style>
+</head>
+<body>
+<main>
+  <section class="board" aria-label="お問い合わせチャットの全体図">
+    <div class="scroll">
+      <svg viewBox="0 0 1200 650" role="img" aria-labelledby="fig-title">
+        <title id="fig-title">AI が答える流れ（質問 → 会話を保存 → AI が FAQ から答える → 返事が届く）と、スタッフにつなぐ流れ（スタッフ待ちにする → スタッフ画面に通知 → スタッフが返信 → お客様に届く）</title>
+        <defs>
+          <marker id="ma" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="4" markerHeight="4" orient="auto"><path class="head-a" d="M0 0 L10 5 L0 10 z"/></marker>
+          <marker id="ms" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="4" markerHeight="4" orient="auto"><path class="head-s" d="M0 0 L10 5 L0 10 z"/></marker>
+          <marker id="ml" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="4" markerHeight="4" orient="auto"><path fill="var(--staff)" d="M0 0 L10 5 L0 10 z"/></marker>
+
+          <!-- 質問を入力 -->
+          <g id="i-chat">
+            <path d="M-46 -40 H12 a6 6 0 0 1 6 6 V2 a6 6 0 0 1 -6 6 H-24 L-36 20 V8 H-46 a6 6 0 0 1 -6 -6 V-34 a6 6 0 0 1 6 -6 Z" fill="currentColor"/>
+            <path d="M-40 -26 H6 M-40 -14 H6 M-40 -2 H-10" stroke="var(--card)" stroke-width="3.5" stroke-linecap="round"/>
+            <path d="M-4 -2 H44 a6 6 0 0 1 6 6 V30 a6 6 0 0 1 -6 6 H36 V48 L24 36 H-4 a6 6 0 0 1 -6 -6 V4 a6 6 0 0 1 6 -6 Z" fill="currentColor" opacity=".7"/>
+          </g>
+
+          <!-- データベース -->
+          <g id="i-db">
+            <path class="db-body" d="M-36 -30 V30 A36 12 0 0 0 36 30 V-30 Z"/>
+            <path class="db-band" d="M-36 -8 A36 12 0 0 0 36 -8 M-36 12 A36 12 0 0 0 36 12"/>
+            <ellipse class="db-top" cx="0" cy="-30" rx="36" ry="12"/>
+          </g>
+
+          <!-- AI が答える -->
+          <g id="i-answer">
+            <path d="M-38 -10 V-4 M-26 -10 V-4 M-14 -10 V-4 M-38 42 V48 M-26 42 V48 M-14 42 V48 M-54 8 H-48 M-54 20 H-48 M-54 32 H-48 M4 8 H10 M4 20 H10 M4 32 H10" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+            <rect x="-48" y="-4" width="52" height="46" rx="7" fill="currentColor"/>
+            <text x="-22" y="26" class="on-color" font-size="18" font-weight="700" text-anchor="middle" font-family="var(--body)">AI</text>
+            <path d="M8 -46 H46 a6 6 0 0 1 6 6 V-14 a6 6 0 0 1 -6 6 H24 L14 2 V-8 H8 a6 6 0 0 1 -6 -6 V-40 a6 6 0 0 1 6 -6 Z" class="paper" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/>
+            <path d="M12 -34 H42 M12 -22 H34" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+          </g>
+
+          <!-- 窓口に返事が届く -->
+          <g id="i-widget">
+            <rect x="-40" y="-44" width="80" height="88" rx="6" class="paper" stroke="currentColor" stroke-width="3"/>
+            <path d="M-40 -28 H40" stroke="currentColor" stroke-width="3"/>
+            <rect x="-40" y="-44" width="80" height="16" rx="6" fill="currentColor"/>
+            <rect x="-30" y="-18" width="40" height="12" rx="4" fill="currentColor" opacity=".45"/>
+            <rect x="-6" y="0" width="36" height="12" rx="4" fill="currentColor"/>
+            <rect x="-30" y="18" width="46" height="12" rx="4" fill="currentColor" opacity=".45"/>
+            <circle cx="40" cy="44" r="12" fill="currentColor"/>
+            <path d="M34 44 L39 49 L47 39" fill="none" stroke="var(--card)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+          </g>
+
+          <!-- スタッフ待ちにする -->
+          <g id="i-handoff">
+            <circle cx="-22" cy="-20" r="13" fill="currentColor" opacity=".7"/>
+            <path d="M-46 22 a24 22 0 0 1 48 0 Z" fill="currentColor" opacity=".7"/>
+            <circle cx="26" cy="-10" r="13" fill="currentColor"/>
+            <path d="M2 32 a24 22 0 0 1 48 0 Z" fill="currentColor"/>
+            <path d="M-14 -44 Q8 -56 22 -36" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+            <path d="M14 -40 L23 -34 L26 -45" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+          </g>
+
+          <!-- スタッフ画面に通知 -->
+          <g id="i-bell">
+            <path d="M-30 20 C-24 12 -24 4 -24 -8 C-24 -26 -12 -38 0 -38 C12 -38 24 -26 24 -8 C24 4 24 12 30 20 Z" fill="currentColor"/>
+            <path d="M-8 26 a8 8 0 0 0 16 0" fill="currentColor"/>
+            <circle cx="26" cy="-30" r="14" fill="var(--store)"/>
+            <text x="26" y="-25" class="on-color" font-size="14" font-weight="700" text-anchor="middle" font-family="var(--body)">1</text>
+          </g>
+
+          <!-- スタッフが返信 -->
+          <g id="i-staff">
+            <rect x="-50" y="-36" width="100" height="62" rx="5" class="paper" stroke="currentColor" stroke-width="3"/>
+            <path d="M-50 -22 H50 M-20 -22 V26" stroke="currentColor" stroke-width="3"/>
+            <path d="M-42 -10 H-28 M-42 0 H-28 M-42 10 H-28" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+            <rect x="-12" y="-14" width="34" height="10" rx="3" fill="currentColor" opacity=".45"/>
+            <rect x="4" y="2" width="38" height="10" rx="3" fill="currentColor"/>
+            <path d="M-14 26 L-18 40 H18 L14 26 M-28 42 H28" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+          </g>
+        </defs>
+
+        <!-- ===== 上の段：AI が答える ===== -->
+        <text x="20" y="44" class="h">AI が答える流れ</text>
+
+        <g class="ai">
+          <use href="#i-chat" x="150" y="150"/>
+          <use href="#i-answer" x="750" y="150"/>
+          <use href="#i-widget" x="1050" y="150"/>
+        </g>
+        <use href="#i-db" x="450" y="150"/>
+
+        <path class="arrow-a" d="M212 150 H380" marker-end="url(#ma)"/>
+        <path class="arrow-a" d="M498 150 H680" marker-end="url(#ma)"/>
+        <path class="arrow-a" d="M812 150 H980" marker-end="url(#ma)"/>
+
+        <text x="150" y="232" class="name">質問を入力</text>
+        <text x="150" y="256" class="tech">ショップのチャット窓口</text>
+        <text x="150" y="275" class="tech">ショップに 1 行で設置</text>
+
+        <text x="450" y="232" class="name">会話を保存</text>
+        <text x="450" y="256" class="tech">Supabase（東京）</text>
+        <text x="450" y="275" class="tech">お客様は自分の会話だけ見える</text>
+
+        <text x="750" y="232" class="name">AI が FAQ から答える</text>
+        <text x="750" y="256" class="tech">Claude API（Sonnet 4.6）</text>
+        <text x="750" y="275" class="tech">登録した FAQ 18 件をもとに</text>
+
+        <text x="1050" y="232" class="name">数秒で返事が届く</text>
+        <text x="1050" y="256" class="tech">開き直さずに表示</text>
+        <text x="1050" y="275" class="tech">Supabase Realtime</text>
+
+        <!-- 答えられないときは、スタッフへ -->
+        <path class="link" d="M750 292 V340 H150 V404" marker-end="url(#ml)"/>
+        <text x="450" y="328" class="tag" fill="var(--staff)">答えられない質問・クレーム・返品は、スタッフへ</text>
+
+        <!-- ===== 下の段：スタッフにつなぐ ===== -->
+        <!-- 左はつなぐ矢印が通るので、見出しは矢印の右に置く -->
+        <text x="186" y="390" class="h">スタッフにつなぐ流れ</text>
+
+        <g class="staff">
+          <use href="#i-handoff" x="150" y="470"/>
+          <use href="#i-bell" x="450" y="470"/>
+          <use href="#i-staff" x="750" y="470"/>
+          <use href="#i-widget" x="1050" y="470"/>
+        </g>
+
+        <path class="arrow-s" d="M212 470 H392" marker-end="url(#ms)"/>
+        <path class="arrow-s" d="M508 470 H682" marker-end="url(#ms)"/>
+        <path class="arrow-s" d="M818 470 H980" marker-end="url(#ms)"/>
+
+        <text x="150" y="552" class="name">スタッフ待ちにする</text>
+        <text x="150" y="576" class="tech">お客様には「おつなぎします」</text>
+        <text x="150" y="595" class="tech">営業時間外は「翌営業日にご返信」</text>
+
+        <text x="450" y="552" class="name">スタッフ画面に知らせる</text>
+        <text x="450" y="576" class="tech">開き直さずに一覧に出る</text>
+        <text x="450" y="595" class="tech">タブの題名にも件数</text>
+
+        <text x="750" y="552" class="name">スタッフが返信</text>
+        <text x="750" y="576" class="tech">スタッフ画面（ログインが必要）</text>
+        <text x="750" y="595" class="tech">Next.js · Vercel（東京）</text>
+
+        <text x="1050" y="552" class="name">お客様の窓口に届く</text>
+        <text x="1050" y="576" class="tech">すぐに表示</text>
+        <text x="1050" y="595" class="tech">Supabase Realtime</text>
+      </svg>
+    </div>
+  </section>
+
+  <p class="caption">ボタニカ お問い合わせチャット全体図</p>
+
+  <div class="notes">
+    <p><strong>2つの画面：</strong>お客様が使うチャット窓口（ショップに 1 行で設置）と、スタッフが使う対応画面（ログインが必要）。</p>
+    <p><strong>AI とスタッフが同時に答えない：</strong>スタッフに引き継いだあとは、AI は返事をしません。関係ない質問は、作り話をせずにお断りします。</p>
+    <p><strong>FAQ の更新：</strong>スタッフ画面から質問と答えを追加・修正すると、次の質問から AI がすぐ使います。</p>
+    <p><strong>次の段階（今回は入れない）：</strong>Shopify の在庫・配送状況の自動確認、週ごとの集計と感情分析など。</p>
+  </div>
+</main>
+</body>
+</html>
