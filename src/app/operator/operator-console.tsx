@@ -1,11 +1,11 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { createBrowserSupabase } from "@/lib/supabase-browser";
 import type { Operator } from "@/lib/supabase-server";
 import { ConversationDetail } from "./conversation-detail";
 import { ConversationList, type Tab } from "./conversation-list";
+import { OperatorHeader, PAGE_TITLE } from "./operator-header";
 import {
   closeConversation,
   fetchConversations,
@@ -19,14 +19,12 @@ import {
   type Message,
 } from "./conversations";
 
-const PAGE_TITLE = "ボタニカ お問い合わせ対応";
 const LOAD_ERROR = "会話を読み込めませんでした。ページを開き直してください。";
 const ACTION_ERROR = "うまくいきませんでした。もう一度お試しください。";
 
 type Notice = { kind: "ok" | "error"; text: string };
 
 export function OperatorConsole({ operator }: { operator: Operator }) {
-  const router = useRouter();
   const supabase = useMemo(() => createBrowserSupabase(), []);
   const [conversations, setConversations] = useState<Conversation[] | null>(null);
   const [operatorNames, setOperatorNames] = useState<Record<string, string>>({});
@@ -141,27 +139,9 @@ export function OperatorConsole({ operator }: { operator: Operator }) {
     }
   };
 
-  const logout = async () => {
-    await supabase.auth.signOut();
-    router.replace("/operator/login");
-    router.refresh();
-  };
-
   return (
     <div className="flex h-dvh flex-col">
-      <header className="flex items-center justify-between gap-3 border-b border-line bg-surface px-4 py-3">
-        <h1 className="truncate text-sm font-bold sm:text-base">{PAGE_TITLE}</h1>
-        <div className="flex shrink-0 items-center gap-3 text-sm">
-          <span className="hidden text-muted sm:inline">{operator.displayName} さん</span>
-          <button
-            type="button"
-            onClick={logout}
-            className="whitespace-nowrap rounded-lg border border-danger px-3 py-1.5 font-bold text-danger"
-          >
-            ログアウト
-          </button>
-        </div>
-      </header>
+      <OperatorHeader operator={operator} current="/operator" />
 
       {notice && (
         <p
