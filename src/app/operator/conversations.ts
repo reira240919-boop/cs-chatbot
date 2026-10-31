@@ -31,8 +31,15 @@ export const STATUS_LABELS: Record<ConversationStatus, string> = {
   closed: "終了",
 };
 
+// conversations 表の check と同じ並び
+export const CATEGORIES = ["在庫", "配送", "返品", "商品質問", "その他"] as const;
+
 const MESSAGE_COLUMNS = "id, conversation_id, sender_type, sender_id, content, created_at";
-const LIST_LIMIT = 200;
+const CONVERSATION_COLUMNS =
+  "id, customer_session_id, status, category, assigned_operator_id, created_at, messages(content, sender_type, created_at)";
+// 終わった会話は増え続けるので、一度に読む件数を区切る
+export const CLOSED_PAGE_SIZE = 50;
+export const SEARCH_LIMIT = 100;
 
 // お客様は匿名なので、番号の頭 4 文字で見分ける
 export function customerLabel(conversation: Pick<Conversation, "customer_session_id">): string {
@@ -47,22 +54,72 @@ export function sortByActivity(conversations: Conversation[]): Conversation[] {
   return [...conversations].sort((a, b) => lastActivity(b).localeCompare(lastActivity(a)));
 }
 
-// 一覧。会話ごとに、いちばん新しいメッセージを 1 件だけ一緒に読む
-export async function fetchConversations(supabase: SupabaseClient): Promise<Conversation[]> {
-  const { data, error } = await supabase
+// 会話ごとに、いちばん新しいメッセージを 1 件だけ一緒に読む
+function selectWithLastMessage(supabase: SupabaseClient) {
+  return supabase
     .from("conversations")
-    .select("id, customer_session_id, status, category, assigned_operator_id, created_at, messages(content, sender_type, created_at)")
-    .order("created_at", { ascending: false })
+    .select(CONVERSATION_COLUMNS)
     .order("created_at", { referencedTable: "messages", ascending: false })
-    .limit(1, { referencedTable: "messages" })
-    .limit(LIST_LIMIT);
+    .limit(1, { referencedTable: "messages" });
+}
+
+function toConversations(data: ({ messages: unknown } & Record<string, unknown>)[]): Conversation[] {
+  return data.map(({ messages, ...conversation }) => ({
+    ...conversation,
+    last_message: (messages as LastMessage[])[0] ?? null,
+  })) as Conversation[];
+}
+
+// 終わっていない会話は、スタッフ待ちを見落とさないよう全部読む
+export async function fetchOpenConversations(supabase: SupabaseClient): Promise<Conversation[]> {
+  const { data, error } = await selectWithLastMessage(supabase)
+    .neq("status", "closed")
+    .order("created_at", { ascending: false });
   if (error) throw error;
-  return sortByActivity(
-    data.map(({ messages, ...conversation }) => ({
-      ...conversation,
-      last_message: (messages as LastMessage[])[0] ?? null,
-    })) as Conversation[],
-  );
+  return toConversations(data);
+}
+
+// 終わった会話は、新しいものから CLOSED_PAGE_SIZE 件ずつ読む
+export async function fetchClosedConversations(supabase: SupabaseClient, offset: number): Promise<Conversation[]> {
+  const { data, error } = await selectWithLastMessage(supabase)
+    .eq("status", "closed")
+    .order("created_at", { ascending: false })
+    .range(offset, offset + CLOSED_PAGE_SIZE - 1);
+  if (error) throw error;
+  return toConversations(data);
+}
+
+export type SearchCondition = { keyword: string; category: string };
+
+// 言葉は、お客様・AI・スタッフのどのメッセージに入っていても当たる
+export async function searchConversations(supabase: SupabaseClient, { keyword, category }: SearchCondition): Promise<Conversation[]> {
+  let ids: string[] | null = null;
+  if (keyword) {
+    const pattern = `%${keyword.replace(/[\\%_]/g, "\\$&")}%`;
+    const { data, error } = await supabase
+      .from("messages")
+      .select("conversation_id")
+      .ilike("content", pattern)
+      .order("created_at", { ascending: false })
+      .limit(1000);
+    if (error) throw error;
+    ids = [...new Set(data.map((m) => m.conversation_id as string))].slice(0, SEARCH_LIMIT);
+    if (ids.length === 0) return [];
+  }
+
+  let query = selectWithLastMessage(supabase);
+  if (ids) query = query.in("id", ids);
+  if (category) query = query.eq("category", category);
+  const { data, error } = await query.order("created_at", { ascending: false }).limit(SEARCH_LIMIT);
+  if (error) throw error;
+  return sortByActivity(toConversations(data));
+}
+
+// 同じ会話が 2 回読まれても、1 つだけ残す
+export function mergeConversations(current: Conversation[], incoming: Conversation[]): Conversation[] {
+  const byId = new Map(current.map((c) => [c.id, c]));
+  for (const c of incoming) byId.set(c.id, c);
+  return sortByActivity([...byId.values()]);
 }
 
 export async function fetchMessages(supabase: SupabaseClient, conversationId: string): Promise<Message[]> {
