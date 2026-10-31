@@ -3,24 +3,342 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>埋め込みの確認用ページ</title>
+    <title>BOTANICA オンラインショップ（確認用）</title>
+    <!-- チャット窓口を貼ったときの見え方を確かめるための、架空のショップ。購入はできない -->
     <style>
-      body { margin: 0; font-family: sans-serif; color: #333; background: #fff; }
-      header { padding: 20px 24px; border-bottom: 1px solid #eee; font-weight: 700; letter-spacing: 0.1em; }
-      main { max-width: 720px; margin: 40px auto; padding: 0 16px; line-height: 1.8; }
-      .note { padding: 12px 16px; background: #f5f5f5; border-radius: 8px; font-size: 14px; }
+      :root {
+        --primary: #56705a;
+        --primary-dark: #435a47;
+        --canvas: #f7f3ec;
+        --surface: #ffffff;
+        --ink: #3f3a34;
+        --muted: #857c72;
+        --line: #e4dccf;
+        --accent: #b9855f;
+        --danger: #9c5b4e;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", Meiryo, sans-serif;
+        color: var(--ink);
+        background: var(--surface);
+        line-height: 1.7;
+      }
+      a { color: inherit; text-decoration: none; }
+      button { font: inherit; cursor: pointer; }
+      .wrap { max-width: 1120px; margin: 0 auto; padding: 0 16px; }
+
+      .announce { background: var(--primary); color: #fff; font-size: 12px; text-align: center; padding: 7px 16px; letter-spacing: 0.04em; }
+
+      .site-header { position: sticky; top: 0; z-index: 10; background: rgba(255, 255, 255, 0.96); border-bottom: 1px solid var(--line); }
+      .site-header .wrap { display: flex; align-items: center; gap: 24px; height: 64px; }
+      .logo { font-size: 22px; font-weight: 700; letter-spacing: 0.22em; color: var(--primary-dark); }
+      .logo small { display: block; font-size: 9px; letter-spacing: 0.3em; color: var(--muted); font-weight: 400; margin-top: -6px; }
+      .nav { display: flex; gap: 20px; font-size: 14px; flex: 1; }
+      .nav a:hover { color: var(--primary); }
+      .icons { display: flex; align-items: center; gap: 14px; }
+      .icon-btn { position: relative; border: none; background: none; padding: 6px; color: var(--ink); display: flex; }
+      .cart-count {
+        position: absolute; top: -2px; right: -4px; min-width: 18px; height: 18px; padding: 0 5px;
+        border-radius: 9px; background: var(--accent); color: #fff; font-size: 11px; font-weight: 700;
+        display: flex; align-items: center; justify-content: center;
+      }
+      .cart-count[hidden] { display: none; }
+
+      .hero { background: var(--canvas); }
+      .hero .wrap { display: grid; grid-template-columns: 1.1fr 1fr; align-items: center; gap: 32px; padding-top: 56px; padding-bottom: 56px; }
+      .eyebrow { font-size: 12px; letter-spacing: 0.3em; color: var(--primary); font-weight: 700; }
+      .hero h1 { font-size: 38px; line-height: 1.4; margin: 10px 0 16px; letter-spacing: 0.04em; }
+      .hero p { color: var(--muted); margin: 0 0 24px; }
+      .tags { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 28px; }
+      .tags span { font-size: 12px; padding: 4px 12px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); }
+      .btn {
+        display: inline-block; border: none; border-radius: 999px; padding: 12px 28px;
+        background: var(--primary); color: #fff; font-weight: 700; letter-spacing: 0.05em;
+      }
+      .btn:hover { background: var(--primary-dark); }
+      .hero-art { display: flex; justify-content: center; }
+      .hero-art svg { width: 100%; max-width: 420px; height: auto; }
+
+      .section { padding: 56px 0; }
+      .section-head { display: flex; align-items: end; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 24px; }
+      .section-head h2 { font-size: 24px; margin: 0; letter-spacing: 0.06em; }
+      .section-head p { margin: 0; font-size: 13px; color: var(--muted); }
+
+      .tabs { display: flex; gap: 8px; overflow-x: auto; margin-bottom: 24px; padding-bottom: 2px; }
+      .tab {
+        flex-shrink: 0; border: 1px solid var(--line); background: var(--surface); color: var(--ink);
+        padding: 8px 18px; border-radius: 999px; font-size: 14px; white-space: nowrap;
+      }
+      .tab:hover { border-color: var(--primary); }
+      .tab[aria-selected="true"] { background: var(--primary); border-color: var(--primary); color: #fff; font-weight: 700; }
+
+      .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px 20px; }
+      .card { display: flex; flex-direction: column; }
+      .thumb { position: relative; aspect-ratio: 1; border-radius: 14px; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+      .thumb svg { width: 62%; height: 62%; transition: transform 0.3s ease; }
+      .card:hover .thumb svg { transform: scale(1.05); }
+      .badge { position: absolute; top: 10px; left: 10px; font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 999px; background: var(--surface); }
+      .badge.popular { color: var(--accent); }
+      .badge.soldout { background: var(--ink); color: #fff; }
+      .badge.preorder { background: var(--primary); color: #fff; }
+      .cat { margin: 12px 0 2px; font-size: 11px; letter-spacing: 0.12em; color: var(--muted); }
+      .name { margin: 0; font-size: 15px; font-weight: 700; line-height: 1.5; }
+      .size { margin: 2px 0 0; font-size: 12px; color: var(--muted); }
+      .price { margin: 8px 0 12px; font-size: 16px; font-weight: 700; }
+      .price small { font-size: 11px; color: var(--muted); font-weight: 400; margin-left: 2px; }
+      .add {
+        margin-top: auto; width: 100%; padding: 10px; border-radius: 10px;
+        border: 1px solid var(--primary); background: var(--surface); color: var(--primary); font-size: 14px; font-weight: 700;
+      }
+      .add:hover { background: var(--primary); color: #fff; }
+      .add.notify { border-color: var(--muted); color: var(--muted); }
+      .add.notify:hover { background: var(--muted); color: #fff; }
+      .add:disabled { opacity: 0.55; cursor: default; background: var(--surface); color: var(--muted); border-color: var(--line); }
+
+      .promise { background: var(--canvas); }
+      .promise ul { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+      .promise li { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 20px; }
+      .promise strong { display: block; font-size: 15px; margin-bottom: 4px; color: var(--primary-dark); }
+      .promise span { font-size: 13px; color: var(--muted); }
+
+      footer { border-top: 1px solid var(--line); padding: 36px 0 96px; font-size: 13px; color: var(--muted); }
+      footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 16px; }
+      footer nav { display: flex; flex-wrap: wrap; gap: 18px; }
+      .demo-note { width: 100%; margin: 8px 0 0; font-size: 12px; }
+
+      .toast {
+        position: fixed; left: 50%; bottom: 28px; z-index: 20; transform: translate(-50%, 20px);
+        background: var(--ink); color: #fff; padding: 11px 22px; border-radius: 999px; font-size: 14px; font-weight: 700;
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18); opacity: 0; pointer-events: none; transition: opacity 0.2s, transform 0.2s;
+        white-space: nowrap;
+      }
+      .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+      @media (max-width: 900px) {
+        .grid { grid-template-columns: repeat(3, 1fr); }
+        .promise ul { grid-template-columns: repeat(2, 1fr); }
+      }
+      @media (max-width: 720px) {
+        .nav { display: none; }
+        .site-header .wrap { justify-content: space-between; }
+        .hero .wrap { grid-template-columns: 1fr; padding-top: 36px; padding-bottom: 36px; }
+        .hero h1 { font-size: 28px; }
+        .hero-art { order: -1; }
+        .hero-art svg { max-width: 260px; }
+        .grid { grid-template-columns: repeat(2, 1fr); gap: 20px 12px; }
+        .name { font-size: 14px; }
+        .promise ul { grid-template-columns: 1fr; }
+        .section { padding: 40px 0; }
+      }
+      @media (prefers-reduced-motion: reduce) { .thumb svg, .toast { transition: none; } }
     </style>
   </head>
   <body>
-    <header>BOTANICA（確認用）</header>
+    <p class="announce">5,000円（税込）以上のご購入で送料無料 ｜ ご注文から2〜4営業日でお届け</p>
+
+    <header class="site-header">
+      <div class="wrap">
+        <a class="logo" href="#">BOTANICA<small>NATURAL SKINCARE</small></a>
+        <nav class="nav" aria-label="カテゴリ">
+          <a href="#shop" data-jump="lotion">化粧水</a>
+          <a href="#shop" data-jump="wash">洗顔</a>
+          <a href="#shop" data-jump="body">ボディケア</a>
+          <a href="#shop" data-jump="aroma">アロマ</a>
+        </nav>
+        <div class="icons">
+          <button class="icon-btn" type="button" aria-label="お気に入り" data-toast="お気に入りは準備中です">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10Z" /></svg>
+          </button>
+          <button class="icon-btn" type="button" aria-label="カート" data-toast="確認用のショップのため、購入はできません">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M5 8h14l-1.2 11a2 2 0 0 1-2 1.8H8.2a2 2 0 0 1-2-1.8L5 8Z" /><path d="M9 8V6a3 3 0 0 1 6 0v2" /></svg>
+            <span class="cart-count" id="cart-count" hidden>0</span>
+          </button>
+        </div>
+      </div>
+    </header>
+
     <main>
-      <h1>ショップに貼ったときの見え方の確認</h1>
-      <p class="note">
-        このページは開発中の確認用です。右下のボタンが、ショップに 1 行貼ったときに出るチャット窓口です。
-      </p>
-      <p>ショップ側に貼るのは、下の 1 行だけです。</p>
-      <pre>&lt;script src="https://（公開先）/widget.js"&gt;&lt;/script&gt;</pre>
+      <section class="hero">
+        <div class="wrap">
+          <div>
+            <p class="eyebrow">BOTANICAL SKINCARE</p>
+            <h1>肌にやさしい、<br />植物のちから。</h1>
+            <p>毎日のスキンケアを、植物由来の素材で。<br />敏感肌の方にもお使いいただける、シンプルな処方です。</p>
+            <div class="tags"><span>無香料</span><span>無着色</span><span>パラベンフリー</span></div>
+            <a class="btn" href="#shop">商品を見る</a>
+          </div>
+          <div class="hero-art" aria-hidden="true">
+            <svg viewBox="0 0 400 320">
+              <ellipse cx="200" cy="290" rx="170" ry="16" fill="#e9e1d3" />
+              <path d="M70 120c-30-40-10-90 30-100-5 45 10 75-30 100Z" fill="#a9bba5" />
+              <path d="M330 140c35-30 30-85-10-105 0 45-25 70 10 105Z" fill="#c3d0bf" />
+              <rect x="110" y="70" width="80" height="210" rx="18" fill="#ffffff" stroke="#d9cfbf" stroke-width="2" />
+              <rect x="128" y="40" width="44" height="34" rx="6" fill="#56705a" />
+              <rect x="122" y="150" width="56" height="70" rx="6" fill="#f2ede4" />
+              <text x="150" y="190" text-anchor="middle" font-size="10" fill="#56705a" font-weight="700" letter-spacing="1.5">BOTANICA</text>
+              <rect x="210" y="170" width="110" height="110" rx="20" fill="#f2e6da" stroke="#d9cfbf" stroke-width="2" />
+              <rect x="204" y="148" width="122" height="30" rx="10" fill="#b9855f" />
+              <text x="265" y="235" text-anchor="middle" font-size="10" fill="#8a6a4f" font-weight="700" letter-spacing="1.5">BODY</text>
+            </svg>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="shop">
+        <div class="wrap">
+          <div class="section-head">
+            <h2>商品一覧</h2>
+            <p>すべて税込価格です</p>
+          </div>
+          <div class="tabs" role="tablist" aria-label="カテゴリで絞り込む" id="tabs"></div>
+          <div class="grid" id="grid"></div>
+        </div>
+      </section>
+
+      <section class="section promise">
+        <div class="wrap">
+          <ul>
+            <li><strong>送料無料</strong><span>5,000円（税込）以上のご購入で。通常は全国一律550円</span></li>
+            <li><strong>2〜4営業日でお届け</strong><span>配送日と時間帯の指定もできます</span></li>
+            <li><strong>8日以内なら返品OK</strong><span>未開封の商品に限ります。破損は当社負担で交換</span></li>
+            <li><strong>ギフトラッピング</strong><span>1点330円。メッセージカードは無料です</span></li>
+          </ul>
+        </div>
+      </section>
     </main>
+
+    <footer>
+      <div class="wrap">
+        <span>© BOTANICA</span>
+        <nav aria-label="ご案内">
+          <a href="#">ご利用ガイド</a>
+          <a href="#">よくある質問</a>
+          <a href="#">特定商取引法に基づく表記</a>
+          <a href="#">プライバシーポリシー</a>
+        </nav>
+        <p class="demo-note">※ このページは、チャット窓口の見え方を確かめるための架空のショップです。実際には購入できません。</p>
+      </div>
+    </footer>
+
+    <p class="toast" id="toast" role="status" aria-live="polite"></p>
+
+    <script>
+      const CATEGORIES = [
+        { id: "all", label: "すべて" },
+        { id: "lotion", label: "化粧水" },
+        { id: "wash", label: "洗顔" },
+        { id: "body", label: "ボディケア" },
+        { id: "aroma", label: "アロマ" },
+      ];
+
+      // stock: in（在庫あり） / out（在庫切れ） / preorder（予約受付中）
+      const PRODUCTS = [
+        { name: "ボタニカローション", size: "150ml", price: 3300, cat: "lotion", shape: "bottle", tint: "#e5ece3", color: "#56705a", badge: "人気" },
+        { name: "ボタニカローション", size: "300ml（たっぷりサイズ）", price: 5940, cat: "lotion", shape: "bottleL", tint: "#e5ece3", color: "#56705a" },
+        { name: "ボタニカ ジェントルクレンジングフォーム", size: "120g", price: 2420, cat: "wash", shape: "tube", tint: "#eef0ea", color: "#7f9a83" },
+        { name: "ボタニカ クレイウォッシュ", size: "100g", price: 2860, cat: "wash", shape: "jarS", tint: "#efe8e1", color: "#a88b74", stock: "out" },
+        { name: "ボタニカ ボディクリーム", size: "200g", price: 3850, cat: "body", shape: "jar", tint: "#f3e9de", color: "#b9855f", badge: "人気" },
+        { name: "ボタニカ ハンド＆ボディミルク", size: "250ml", price: 2970, cat: "body", shape: "pump", tint: "#f3ece4", color: "#c49a78", stock: "preorder" },
+        { name: "アロマオイル ラベンダー", size: "10ml", price: 2200, cat: "aroma", shape: "dropper", tint: "#ebe7f0", color: "#8a7fa0" },
+        { name: "アロマ ルームミスト ゆず", size: "100ml", price: 2750, cat: "aroma", shape: "mist", tint: "#f4efdc", color: "#c9a548" },
+      ];
+
+      const shapes = {
+        bottle: (c) => `<rect x="34" y="30" width="32" height="62" rx="9" fill="#fff" stroke="#d9cfbf" stroke-width="1.5"/><rect x="41" y="16" width="18" height="16" rx="3" fill="${c}"/><rect x="39" y="56" width="22" height="22" rx="3" fill="${c}" opacity=".18"/>`,
+        bottleL: (c) => `<rect x="30" y="26" width="40" height="68" rx="10" fill="#fff" stroke="#d9cfbf" stroke-width="1.5"/><rect x="39" y="10" width="22" height="18" rx="3" fill="${c}"/><rect x="36" y="52" width="28" height="28" rx="3" fill="${c}" opacity=".18"/>`,
+        tube: (c) => `<path d="M36 20h28l-3 70H39Z" fill="#fff" stroke="#d9cfbf" stroke-width="1.5"/><rect x="34" y="10" width="32" height="12" rx="2" fill="${c}"/><rect x="40" y="46" width="20" height="20" rx="2" fill="${c}" opacity=".18"/>`,
+        jarS: (c) => `<rect x="28" y="50" width="44" height="38" rx="9" fill="#fff" stroke="#d9cfbf" stroke-width="1.5"/><rect x="25" y="40" width="50" height="14" rx="5" fill="${c}"/>`,
+        jar: (c) => `<rect x="22" y="44" width="56" height="46" rx="11" fill="#fff" stroke="#d9cfbf" stroke-width="1.5"/><rect x="18" y="32" width="64" height="16" rx="6" fill="${c}"/><rect x="36" y="58" width="28" height="18" rx="3" fill="${c}" opacity=".18"/>`,
+        pump: (c) => `<rect x="32" y="36" width="36" height="56" rx="9" fill="#fff" stroke="#d9cfbf" stroke-width="1.5"/><rect x="44" y="22" width="12" height="16" fill="${c}"/><path d="M42 20h26v6H42Z" fill="${c}"/><rect x="38" y="56" width="24" height="22" rx="3" fill="${c}" opacity=".18"/>`,
+        dropper: (c) => `<rect x="38" y="44" width="24" height="46" rx="6" fill="${c}" opacity=".55"/><rect x="42" y="30" width="16" height="16" rx="2" fill="#3f3a34"/><ellipse cx="50" cy="24" rx="6" ry="8" fill="#3f3a34"/><rect x="42" y="60" width="16" height="16" rx="2" fill="#fff" opacity=".8"/>`,
+        mist: (c) => `<rect x="34" y="38" width="32" height="54" rx="8" fill="#fff" stroke="#d9cfbf" stroke-width="1.5"/><rect x="42" y="22" width="16" height="18" rx="3" fill="${c}"/><circle cx="66" cy="22" r="1.6" fill="${c}"/><circle cx="72" cy="18" r="1.6" fill="${c}"/><circle cx="72" cy="26" r="1.6" fill="${c}"/><rect x="39" y="56" width="22" height="22" rx="3" fill="${c}" opacity=".18"/>`,
+      };
+
+      const yen = (n) => n.toLocaleString("ja-JP");
+      const labelOf = (id) => CATEGORIES.find((c) => c.id === id).label;
+      let current = "all";
+      let cart = 0;
+
+      const toastEl = document.getElementById("toast");
+      let toastTimer;
+      function toast(text) {
+        toastEl.textContent = text;
+        toastEl.classList.add("show");
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => toastEl.classList.remove("show"), 2200);
+      }
+
+      function renderTabs() {
+        document.getElementById("tabs").innerHTML = CATEGORIES.map(
+          (c) => `<button class="tab" type="button" role="tab" aria-selected="${c.id === current}" data-cat="${c.id}">${c.label}</button>`,
+        ).join("");
+      }
+
+      function button(p, i) {
+        if (p.stock === "out") return `<button class="add notify" type="button" data-notify="${i}">再入荷お知らせに登録</button>`;
+        if (p.stock === "preorder") return `<button class="add" type="button" data-add="${i}">予約する</button>`;
+        return `<button class="add" type="button" data-add="${i}">カートに入れる</button>`;
+      }
+
+      function badge(p) {
+        if (p.stock === "out") return `<span class="badge soldout">在庫切れ</span>`;
+        if (p.stock === "preorder") return `<span class="badge preorder">予約受付中</span>`;
+        if (p.badge) return `<span class="badge popular">${p.badge}</span>`;
+        return "";
+      }
+
+      function renderGrid() {
+        document.getElementById("grid").innerHTML = PRODUCTS.map((p, i) => ({ p, i }))
+          .filter(({ p }) => current === "all" || p.cat === current)
+          .map(
+            ({ p, i }) => `
+            <article class="card">
+              <div class="thumb" style="background:${p.tint}">
+                ${badge(p)}
+                <svg viewBox="0 0 100 100" aria-hidden="true">${shapes[p.shape](p.color)}</svg>
+              </div>
+              <p class="cat">${labelOf(p.cat)}</p>
+              <h3 class="name">${p.name}</h3>
+              <p class="size">${p.size}</p>
+              <p class="price">¥${yen(p.price)}<small>（税込）</small></p>
+              ${button(p, i)}
+            </article>`,
+          )
+          .join("");
+      }
+
+      function select(cat) {
+        current = cat;
+        renderTabs();
+        renderGrid();
+      }
+
+      document.addEventListener("click", (event) => {
+        const el = event.target.closest("[data-cat], [data-jump], [data-add], [data-notify], [data-toast]");
+        if (!el) return;
+        if (el.dataset.cat) select(el.dataset.cat);
+        if (el.dataset.jump) select(el.dataset.jump);
+        if (el.dataset.toast) toast(el.dataset.toast);
+        if (el.dataset.add) {
+          const p = PRODUCTS[el.dataset.add];
+          cart += 1;
+          const count = document.getElementById("cart-count");
+          count.textContent = cart;
+          count.hidden = false;
+          toast(p.stock === "preorder" ? "予約をカートに入れました" : "カートに入れました");
+        }
+        if (el.dataset.notify) {
+          el.textContent = "登録しました";
+          el.disabled = true;
+          toast("再入荷のお知らせを登録しました");
+        }
+      });
+
+      select("all");
+    </script>
+
     <!-- ショップに貼る 1 行と同じもの -->
     <script src="/widget.js"></script>
   </body>
